@@ -1,0 +1,316 @@
+import pygame
+import time
+import random
+import math
+
+# Inicialização
+pygame.init()
+WIDTH, HEIGHT = 800, 600
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Five Nights at Python's - Ultimate Edition")
+clock = pygame.time.Clock()
+
+# Cores Principais
+BLACK, WHITE = (5, 5, 8), (220, 220, 220)
+GRAY_WALL = (40, 45, 50)
+RED_L, GREEN_L = (200, 0, 0), (0, 200, 50)
+DARK_RED = (100, 0, 0)
+GOLD, CYAN = (255, 215, 0), (0, 255, 255)
+
+# --- SISTEMA DE ESTADOS E NOITES ---
+game_state = "MENU" # MENU, PLAYING, JUMPSCARE, WIN_6AM, GAME_OVER
+night = 1
+power = 100.0
+left_door = right_door = monitor_up = False
+active_cam = "1A"
+hour = 0
+start_time = 0
+seconds_per_hour = 60
+running = True
+jumpscare_by = None
+jumpscare_frame = 0 # Contador para a animação do pulo
+confetes = []
+
+# --- IA DOS ANIMATRÔNICOS ---
+animatronics = {
+    "Bonnie": {"color": (80, 80, 180), "path": ["1A", "1B", "5", "2A", "2B", "left_door", "office"], "idx": 0, "ai": 5},
+    "Chica":  {"color": (200, 200, 20), "path": ["1A", "1B", "7", "6", "4A", "4B", "right_door", "office"], "idx": 0, "ai": 4},
+    "Freddy": {"color": (100, 50, 20), "path": ["1A", "1B", "7", "6", "4A", "4B", "right_door", "office"], "idx": 0, "ai": 2},
+    "Foxy":   {"color": (150, 40, 40), "path": ["1C", "1C", "1C", "2A", "left_door", "office"], "idx": 0, "ai": 6}
+}
+
+MOVE_EVENT = pygame.USEREVENT + 1
+pygame.time.set_timer(MOVE_EVENT, 4000)
+
+map_offset_x, map_offset_y = 520, 260
+cam_buttons = {
+    "1A": pygame.Rect(map_offset_x + 100, map_offset_y + 20, 40, 30),
+    "1B": pygame.Rect(map_offset_x + 90, map_offset_y + 70, 40, 30),
+    "1C": pygame.Rect(map_offset_x + 30, map_offset_y + 110, 40, 30),
+    "5":  pygame.Rect(map_offset_x - 30, map_offset_y + 70, 40, 30),
+    "7":  pygame.Rect(map_offset_x + 230, map_offset_y + 70, 40, 30),
+    "6":  pygame.Rect(map_offset_x + 230, map_offset_y + 200, 40, 30),
+    "2A": pygame.Rect(map_offset_x + 50, map_offset_y + 200, 40, 30),
+    "2B": pygame.Rect(map_offset_x + 50, map_offset_y + 240, 40, 30),
+    "3":  pygame.Rect(map_offset_x - 10, map_offset_y + 200, 40, 30),
+    "4A": pygame.Rect(map_offset_x + 150, map_offset_y + 200, 40, 30),
+    "4B": pygame.Rect(map_offset_x + 150, map_offset_y + 240, 40, 30)
+}
+
+# --- FUNÇÕES DE SUPORTE ---
+
+def reset_game_session():
+    global power, left_door, right_door, monitor_up, active_cam, hour, start_time, jumpscare_by, jumpscare_frame
+    power, left_door, right_door, monitor_up, active_cam, hour, jumpscare_by, jumpscare_frame = 100.0, False, False, False, "1A", 0, None, 0
+    start_time = time.time()
+    for name in animatronics: animatronics[name]["idx"] = 0
+
+def draw_vector_animatronic(surface, name, x, y, scale=1.0):
+    color = animatronics[name]["color"]
+    s = scale
+    # Corpo
+    pygame.draw.rect(surface, color, (x - 20*s, y + 30*s, 40*s, 60*s), border_radius=int(10*s))
+    # Cabeça
+    pygame.draw.circle(surface, color, (int(x), int(y + 20*s)), int(22*s))
+    # Olhos
+    pygame.draw.circle(surface, BLACK, (int(x - 8*s), int(y + 15*s)), int(6*s))
+    pygame.draw.circle(surface, BLACK, (int(x + 8*s), int(y + 15*s)), int(6*s))
+    pygame.draw.circle(surface, WHITE, (int(x - 8*s), int(y + 15*s)), int(2*s))
+    pygame.draw.circle(surface, WHITE, (int(x + 8*s), int(y + 15*s)), int(2*s))
+
+    if name == "Freddy":
+        pygame.draw.rect(surface, BLACK, (x - 10*s, y - 15*s, 20*s, 15*s)) 
+        pygame.draw.rect(surface, BLACK, (x - 15*s, y, 30*s, 4*s))      
+    elif name == "Bonnie":
+        pygame.draw.ellipse(surface, color, (x - 14*s, y - 20*s, 12*s, 25*s))  
+        pygame.draw.ellipse(surface, color, (x + 2*s, y - 20*s, 12*s, 25*s)) 
+    elif name == "Chica":
+        pygame.draw.polygon(surface, (255, 150, 0), [(x-10*s, y+25*s), (x+10*s, y+25*s), (x, y+35*s)]) 
+        pygame.draw.rect(surface, WHITE, (x - 15*s, y + 40*s, 30*s, 20*s)) 
+    elif name == "Foxy":
+        pygame.draw.circle(surface, BLACK, (int(x - 8*s), int(y + 15*s)), int(8*s)) 
+        pygame.draw.arc(surface, (150, 150, 150), (x - 30*s, y + 50*s, 20*s, 20*s), math.pi, 0, int(3*s)) 
+
+def draw_office_bg():
+    screen.fill(BLACK)
+    pygame.draw.rect(screen, GRAY_WALL, (150, 0, 500, HEIGHT))
+    floor_y = 400
+    pygame.draw.rect(screen, (15, 15, 20), (150, floor_y, 500, HEIGHT - floor_y))
+    for i in range(150, 650, 50):
+        pygame.draw.polygon(screen, (5, 5, 10), [(i, floor_y), (i+25, floor_y), (i-20+(i-150)*1.2, HEIGHT), (i-50+(i-150)*1.2, HEIGHT)])
+    pygame.draw.rect(screen, (5, 5, 8), (0, 50, 150, HEIGHT))
+    pygame.draw.rect(screen, (5, 5, 8), (WIDTH-150, 50, 150, HEIGHT))
+    for px in [110, WIDTH - 140]:
+        pygame.draw.rect(screen, (60, 60, 65), (px, 250, 30, 80), border_radius=5)
+        door_active = left_door if px < 400 else right_door
+        pygame.draw.circle(screen, RED_L if door_active else DARK_RED, (px+15, 270), 10)
+        pygame.draw.circle(screen, (0, 80, 0), (px+15, 310), 10)
+
+def draw_door(x, y, width, height):
+    pygame.draw.rect(screen, (40, 40, 45), (x, y, width, height))
+    pygame.draw.rect(screen, (20, 20, 25), (x, y, width, height), 5)
+    for i in range(1, 4):
+        line_y = y + (i * (height // 4))
+        pygame.draw.line(screen, BLACK, (x, line_y), (x + width, line_y), 3)
+
+def draw_office_props():
+    pygame.draw.rect(screen, (30, 25, 20), (100, 420, 600, 180))
+    pygame.draw.rect(screen, (15, 10, 5), (100, 420, 600, 15))
+    pygame.draw.rect(screen, (150, 150, 140), (330, 60, 140, 180)) 
+    pygame.draw.rect(screen, (50, 50, 50), (330, 60, 140, 180), 3)
+    pygame.draw.circle(screen, animatronics["Freddy"]["color"], (400, 120), 25) 
+    pygame.draw.circle(screen, BLACK, (390, 115), 5) 
+    pygame.draw.circle(screen, BLACK, (410, 115), 5) 
+    screen.blit(pygame.font.SysFont("Courier New", 14, bold=True).render("CELEBRATE!", True, DARK_RED), (355, 210))
+    pygame.draw.rect(screen, (20, 20, 25), (550, 410, 40, 20)) 
+    pygame.draw.rect(screen, (10, 10, 15), (565, 360, 10, 50)) 
+    pygame.draw.circle(screen, (30, 30, 35), (570, 340), 35, 3) 
+    angle = time.time() * 10
+    for offset in [0, math.pi/2, math.pi, math.pi*1.5]:
+        end_x = 570 + math.cos(angle + offset) * 30
+        end_y = 340 + math.sin(angle + offset) * 30
+        pygame.draw.line(screen, (80, 80, 85), (570, 340), (end_x, end_y), 6)
+    pygame.draw.rect(screen, (10, 10, 12), (280, 300, 240, 120))
+    pygame.draw.rect(screen, (5, 15, 5), (290, 310, 220, 100)) 
+    for i in range(310, 410, 5): pygame.draw.line(screen, (0, 10, 0), (290, i), (510, i))
+
+def draw_crt_effects(intensity=1):
+    for _ in range(50 * intensity):
+        x, y = random.randint(0, WIDTH-1), random.randint(0, HEIGHT-1)
+        screen.set_at((x, y), (100, 100, 100))
+    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    for y in range(0, HEIGHT, 4): pygame.draw.line(overlay, (0, 0, 0, 80), (0, y), (WIDTH, y))
+    screen.blit(overlay, (0, 0))
+
+def draw_cameras():
+    screen.fill((15, 15, 15))
+    if active_cam == "6": 
+        screen.fill((5, 5, 5))
+        screen.blit(pygame.font.SysFont("Courier New", 30, bold=True).render("CAMERA DISABLED", True, WHITE), (250, 250))
+        screen.blit(pygame.font.SysFont("Courier New", 20).render("AUDIO ONLY", True, WHITE), (320, 300))
+    else:
+        if active_cam == "1A": # Palco
+            pygame.draw.rect(screen, (30, 30, 30), (50, 50, 700, 500), 2)
+            pygame.draw.rect(screen, (40, 20, 10), (150, 350, 500, 100)) 
+            for lx in [250, 400, 550]: pygame.draw.circle(screen, (100, 100, 150), (lx, 100), 40) 
+        elif active_cam == "1B": # Refeitório
+            pygame.draw.rect(screen, (30, 30, 30), (50, 50, 700, 500), 2)
+            pygame.draw.rect(screen, (60, 60, 60), (200, 350, 100, 200)) 
+            pygame.draw.rect(screen, (60, 60, 60), (500, 350, 100, 200)) 
+            pygame.draw.circle(screen, WHITE, (250, 400), 20) 
+            pygame.draw.polygon(screen, (200, 50, 50), [(250, 380), (240, 400), (260, 400)]) 
+        elif active_cam in ["2A", "2B", "4A", "4B"]: # Corredores
+            pygame.draw.rect(screen, (40, 40, 45), (150, 100, 400, 200))
+            for y in range(300, 550, 50):
+                for x in range(150, 550, 50):
+                    if (x//50 + y//50) % 2 == 0: pygame.draw.rect(screen, (20, 20, 25), (x, y, 50, 50))
+            if active_cam == "2A":
+                pygame.draw.rect(screen, (220, 220, 220), (250, 150, 80, 120)); screen.blit(pygame.font.SysFont("Arial", 14, bold=True).render("RULES", True, BLACK), (265, 160))
+            elif active_cam == "2B":
+                screen.blit(pygame.font.SysFont("Courier New", 24, bold=True).render("WEST HALL", True, (100, 100, 100)), (180, 150))
+            elif active_cam == "4B":
+                screen.blit(pygame.font.SysFont("Courier New", 24, bold=True).render("EAST HALL", True, (100, 100, 100)), (420, 150))
+        elif active_cam == "3": pygame.draw.rect(screen, (50, 30, 10), (200, 150, 100, 350)) 
+        elif active_cam == "5": # Backstage
+            pygame.draw.rect(screen, (50, 40, 40), (150, 150, 400, 350)) 
+            pygame.draw.rect(screen, (30, 20, 10), (150, 280, 400, 20))
+            screen.blit(pygame.font.SysFont("Courier New", 20, bold=True).render("SPARE PARTS", True, WHITE), (170, 170))
+            pygame.draw.circle(screen, (100, 50, 20), (220, 240), 30) # Cabeça extra
+        elif active_cam == "7": pygame.draw.rect(screen, (80, 80, 80), (200, 200, 100, 250)) 
+
+    # Desenho dos Animatrônicos nas Câmeras
+    draw_pos_x = 300
+    for name, data in animatronics.items():
+        if data["path"][data["idx"]] == active_cam and active_cam != "6":
+            if name == "Foxy" and active_cam == "1C":
+                if data["idx"] == 1: draw_vector_animatronic(screen, name, 240, 220) 
+                elif data["idx"] == 2: draw_vector_animatronic(screen, name, 275, 230) 
+            else:
+                ajuste_y = 300 if active_cam == "5" else 220
+                draw_vector_animatronic(screen, name, draw_pos_x, ajuste_y)
+                draw_pos_x += 80
+    if active_cam == "1C": # Cortinas Foxy
+        pygame.draw.rect(screen, (60, 0, 60), (100, 100, 160, 400)); pygame.draw.rect(screen, (60, 0, 60), (320, 100, 150, 400)) 
+
+    # Mapa e Interface
+    pygame.draw.rect(screen, (10, 10, 10), (map_offset_x - 50, map_offset_y, 350, 300))
+    pygame.draw.rect(screen, WHITE, (map_offset_x - 50, map_offset_y, 350, 300), 2)
+    def connect(c1, c2): pygame.draw.line(screen, (100, 100, 100), cam_buttons[c1].center, cam_buttons[c2].center, 3)
+    connect("1A", "1B"); connect("1B", "1C"); connect("1B", "5"); connect("1B", "7")
+    for cam, rect in cam_buttons.items():
+        is_active = (cam == active_cam)
+        pygame.draw.rect(screen, WHITE if is_active else (50, 50, 50), rect, border_radius=4)
+        pygame.draw.rect(screen, WHITE, rect, 1, border_radius=4)
+        screen.blit(pygame.font.SysFont("Courier New", 14, bold=True).render(cam, True, BLACK if is_active else WHITE), (rect.x + 8, rect.y + 8))
+    draw_crt_effects(intensity=2)
+
+def draw_office():
+    draw_office_bg()
+    for name, data in animatronics.items():
+        current_room = data["path"][data["idx"]]
+        if current_room == "left_door" and not left_door: draw_vector_animatronic(screen, name, 40, 280)
+        if current_room == "right_door" and not right_door: draw_vector_animatronic(screen, name, WIDTH - 90, 280)
+    if left_door: draw_door(0, 50, 150, HEIGHT)
+    if right_door: draw_door(WIDTH - 150, 50, 150, HEIGHT)
+    draw_office_props()
+    vignette = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    pygame.draw.ellipse(vignette, (0, 0, 0, 150), (-100, -100, WIDTH+200, HEIGHT+200), 150); screen.blit(vignette, (0, 0))
+    draw_crt_effects(intensity=1)
+
+# --- SISTEMA DE TELAS ---
+
+def draw_win_6am():
+    global confetes, game_state, night
+    screen.fill(BLACK)
+    font = pygame.font.SysFont("Courier New", 120, bold=True)
+    screen.blit(font.render("6 AM", True, WHITE), (WIDTH//2 - 140, HEIGHT//2 - 60))
+    if len(confetes) < 100:
+        confetes.append([random.randint(0, WIDTH), -10, random.choice([RED_L, GREEN_L, GOLD, CYAN]), random.randint(3, 8)])
+    for c in confetes:
+        c[1] += c[3]; pygame.draw.rect(screen, c[2], (c[0], c[1], 10, 10))
+    pygame.display.flip()
+    if pygame.time.get_ticks() % 4000 < 40:
+        if night < 5: night += 1
+        confetes = []; game_state = "MENU"
+
+def draw_main_menu():
+    screen.fill(BLACK)
+    font_title = pygame.font.SysFont("Courier New", 60, bold=True)
+    screen.blit(font_title.render("FNAF PYTHON", True, WHITE), (WIDTH//2 - 180, 150))
+    btn = pygame.Rect(WIDTH//2 - 100, 350, 200, 60)
+    pygame.draw.rect(screen, (30, 30, 35), btn, border_radius=10); pygame.draw.rect(screen, WHITE, btn, 2, border_radius=10)
+    msg = f"START NIGHT {night}"
+    screen.blit(pygame.font.SysFont("Courier New", 25, bold=True).render(msg, True, WHITE), (WIDTH//2 - 90, 365))
+    draw_crt_effects(2); return btn
+
+# --- LOOP PRINCIPAL ---
+
+while running:
+    if game_state == "MENU":
+        start_btn = draw_main_menu()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT: running = False
+            if event.type == pygame.MOUSEBUTTONDOWN and start_btn.collidepoint(event.pos): reset_game_session(); game_state = "PLAYING"
+
+    elif game_state == "PLAYING":
+        elapsed = time.time() - start_time
+        hour = int(elapsed // seconds_per_hour)
+        if hour >= 6: game_state = "WIN_6AM"
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT: running = False
+            if event.type == MOVE_EVENT:
+                for name, data in animatronics.items():
+                    dificuldade = data["ai"] + (night * 2)
+                    current_loc = data["path"][data["idx"]]
+                    is_blocked = (current_loc == "left_door" and left_door) or (current_loc == "right_door" and right_door)
+                    if random.randint(1, 20) <= dificuldade or is_blocked:
+                        next_loc = data["path"][data["idx"] + 1]
+                        if next_loc == "office":
+                            if (current_loc == "left_door" and not left_door) or (current_loc == "right_door" and not right_door):
+                                monitor_up = False; jumpscare_by = name; jumpscare_frame = 0; game_state = "JUMPSCARE"
+                            else: data["idx"] = 1
+                        else: data["idx"] += 1
+            if event.type == pygame.KEYDOWN and power > 0:
+                if event.key == pygame.K_a and not monitor_up: left_door = not left_door
+                if event.key == pygame.K_d and not monitor_up: right_door = not right_door
+                if event.key == pygame.K_SPACE: monitor_up = not monitor_up
+                if event.key == pygame.K_w: game_state = "WIN_6AM" # ADMIN
+            if event.type == pygame.MOUSEBUTTONDOWN and monitor_up and power > 0:
+                for cam, rect in cam_buttons.items():
+                    if rect.collidepoint(event.pos): active_cam = cam
+
+        power -= 0.005 + (0.015 if left_door else 0) + (0.015 if right_door else 0) + (0.010 if monitor_up else 0)
+        if power <= 0: power = 0; left_door = right_door = monitor_up = False
+        if monitor_up: draw_cameras()
+        else: draw_office()
+        font_s = pygame.font.SysFont("Courier New", 20, bold=True)
+        screen.blit(font_s.render(f"{12 if hour==0 else hour} AM", True, WHITE), (WIDTH - 150, 20))
+        screen.blit(font_s.render(f"Power: {int(power)}%  Night: {night}", True, GREEN_L if power > 20 else RED_L), (30, 20))
+
+    elif game_state == "JUMPSCARE":
+        # Animação de Pulo: Aumenta o tamanho e treme a tela
+        draw_office_bg()
+        shake_x = random.randint(-15, 15)
+        shake_y = random.randint(-15, 15)
+        # Escala aumenta a cada frame
+        current_scale = 1.0 + (jumpscare_frame * 0.4)
+        draw_vector_animatronic(screen, jumpscare_by, WIDTH // 2 + shake_x, HEIGHT // 2 + shake_y, scale=current_scale)
+        jumpscare_frame += 1
+        pygame.display.flip()
+        if jumpscare_frame > 25: # Aproximadamente 0.4 segundos de susto
+            game_state = "GAME_OVER"
+
+    elif game_state == "WIN_6AM": draw_win_6am()
+
+    elif game_state == "GAME_OVER":
+        screen.fill((30, 0, 0))
+        screen.blit(pygame.font.SysFont("Courier New", 50, bold=True).render(f"CAUGHT BY {jumpscare_by.upper()}", True, WHITE), (150, 250))
+        pygame.display.flip()
+        time.sleep(2)
+        game_state = "MENU"
+
+    pygame.display.flip()
+    clock.tick(60)
+
+pygame.quit()
