@@ -1,3 +1,48 @@
-Five Nights at Python's (FNAF Python Edition)Este é um projeto de fã desenvolvido em Python utilizando a biblioteca Pygame. O objetivo foi recriar as mecânicas principais do jogo Five Nights at Freddy's 1 de forma puramente vetorial (usando geometria para os gráficos), incluindo sistema de câmeras, inteligência artificial, gestão de energia e progressão de noites.🛠️ Funcionalidades ImplementadasCiclo de 5 Noites: A dificuldade escala conforme o jogador progride.IA Avançada: Quatro animatrônicos (Freddy, Bonnie, Chica e Foxy) com rotas e comportamentos distintos.Gráficos Vetoriais: Cenário detalhado construído inteiramente via código (Backstage, Corredores com placas, ventilador animado).Sistema de Câmeras: Mapa interativo com linhas de conexão entre as salas.Efeitos Visuais: Filtro CRT (estática de TV) e animação de Jumpscare.Modo Admin: Tecla de atalho para testes de desenvolvedor.🕹️ ControlesTeclaAçãoAAbre / Fecha Porta EsquerdaDAbre / Fecha Porta DireitaEspaçoAbre / Fecha o Monitor de CâmerasMouseNavega entre as câmeras no mapaW (Admin)Pula instantaneamente para as 6 AM🚀 Como ExecutarCertifique-se de ter o Python 3.x instalado.Instale a biblioteca Pygame:Bashpip install pygame
-Execute o jogo:Bashpython fnaf.py
-⚖️ Avisos Legais e Isenção de Responsabilidade🤖 Desenvolvimento via IAEste código foi gerado inteiramente através de interações com Inteligência Artificial (IA). O foco do projeto foi o aprendizado de lógica de programação, máquinas de estado e manipulação gráfica com Pygame.💸 Sem Fins LucrativosEste é um projeto não oficial e sem fins lucrativos, feito estritamente para fins de diversão e estudo. Não há intenção de comercialização ou violação de propriedades intelectuais. Todos os direitos de Five Nights at Freddy's pertencem aos seus respectivos criadores originais.🚫 Isenção de ResponsabilidadeO autor deste repositório:Não se responsabiliza pelo uso indevido do código por terceiros.Não oferece garantias de funcionamento pleno ou suporte técnico.Não se responsabiliza por quaisquer danos ou infrações de direitos autorais causadas pela modificação ou distribuição deste código para propósitos comerciais.Nota: Use este código para estudar, aprender e se divertir. O código é aberto para melhorias e experimentação!
+# 🐻 Five Nights at Python's (FNAF Python Edition)
+
+Este é um projeto de fã desenvolvido em Python utilizando a biblioteca Pygame. 
+O objetivo principal foi recriar as mecânicas clássicas de FNAF 1 de forma 
+totalmente vetorial, utilizando lógica de programação para desenhar cenários e personagens.
+
+---
+
+## 🛠️ Funcionalidades Implementadas
+
+1.  **Progressão de Noites:** Sistema completo da Noite 1 até a Noite 5.
+2.  **IA dos Animatrônicos:** Freddy, Bonnie, Chica e Foxy com comportamentos reais.
+3.  **Gráficos Vetoriais:** Cenários detalhados (Backstage, Corredores, Regras) feitos via código.
+4.  **Sistema de Defesa:** Gestão de portas, luzes e energia limitada.
+5.  **Animações:** Jumpscares dinâmicos com zoom e efeito de tremor.
+6.  **Modo Admin:** Atalho para desenvolvedores testarem as 6 AM.
+
+---
+
+## 🕹️ Controles de Jogo
+
+* **Tecla [A]**: Abre/Fecha a Porta Esquerda.
+* **Tecla [D]**: Abre/Fecha a Porta Direita.
+* **Tecla [Espaço]**: Sobe/Desce o Monitor de Câmeras.
+* **Mouse**: Seleciona as câmeras no mapa interativo.
+* **Tecla [W]**: (ADMIN) Pula instantaneamente para as 6 AM.
+
+---
+
+## ⚖️ Avisos Legais e Isenção de Responsabilidade
+
+### 🤖 Código Gerado por IA
+Este projeto foi desenvolvido utilizando Inteligência Artificial para a criação da lógica, 
+algoritmos e estrutura gráfica. O objetivo principal foi o aprendizado e a diversão.
+
+### 💸 Sem Fins Lucrativos
+Este é um projeto estritamente para fins de entretenimento e estudo. Não há qualquer 
+intenção de comercialização, lucro ou violação de direitos autorais. Todos os direitos 
+sobre a franquia "Five Nights at Freddy's" pertencem aos seus respectivos criadores.
+
+### 🚫 Isenção de Responsabilidade
+1. O desenvolvedor **não se responsabiliza** pelo uso indevido deste código por terceiros.
+2. O código é fornecido "como está", sem garantias de suporte técnico ou atualizações.
+3. Este repositório não incentiva a pirataria nem o uso comercial de propriedades intelectuais alheias.
+
+---
+
+**Nota:** Sinta-se à vontade para explorar o código, modificar e aprender com ele!
